@@ -1,11 +1,11 @@
 import json
 import requests
 
-import typer
+from rich import print
 
 
 def get_token(app_id: str, app_secret: str) -> str:
-    print(app_id, app_secret)
+    # print(f"[blue]APP[/blue] app_id: {app_id} app_secret: {app_secret}")
 
     url = "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal"
     payload = json.dumps(
@@ -24,6 +24,6 @@ def get_token(app_id: str, app_secret: str) -> str:
     if tenant_access_token is None:
         raise Exception("Failed to get tenant_access_token")
 
-    typer.echo("tenant_access_token: {0}".format(tenant_access_token))
+    print("[blue]APP[/blue] tenant_access_token: {0}".format(tenant_access_token))
 
     return tenant_access_token

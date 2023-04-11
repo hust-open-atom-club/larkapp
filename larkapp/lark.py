@@ -1,8 +1,8 @@
 # from larkapp.web import app
 import json
-import random
+import datetime
 
-import typer
+from rich import print
 
 import requests
 
@@ -14,10 +14,13 @@ class LarkApp:
         if app_id is None or app_secret is None:
             raise Exception("app_id or app_secret is None")
 
-        self.token = get_token(app_id, app_secret)
+        self.app_id = app_id
+        self.app_secret = app_secret
 
-        self.spreadsheetToken = "shtcnIOEYcbbwoVQQZsKBgiuNFe"
-        self.app_token = "SGDMbFZuyasuOAsLCi7cRZ83nfe"
+        self.token = get_token(self.app_id, self.app_secret)
+
+        self.spreadsheetToken = "shtcnIOEYcbbwoVQQZsKBgiuNFe"  # 成员信息表id
+        self.app_token = "SGDMbFZuyasuOAsLCi7cRZ83nfe"  # 多维表格id
 
         # 接下来的值可以自动获取
 
@@ -44,11 +47,13 @@ class LarkApp:
 
         response = requests.request("GET", metainfo_url, headers=headers)
         if response.json().get("code") != 0:
-            raise Exception("Failed to get spreadsheet metainfo")
+            print("[red]ALERT[/red] Failed to get spreadsheet metainfo")
+            return
+            # raise Exception("Failed to get spreadsheet metainfo")
 
         self.sheet_id = response.json().get("data").get("sheets")[0].get("sheetId")
 
-        typer.echo("sheet_id: {0}".format(self.sheet_id))
+        print("[blue]APP[/blue] sheet_id: {0}".format(self.sheet_id))
 
         # --------------------------------------------#
         # 获取多维表格的数据表table_id
@@ -61,7 +66,9 @@ class LarkApp:
 
         response = requests.request("GET", tables_url, headers=headers, params=params)
         if response.json().get("code") != 0:
-            raise Exception("Failed to get bitable tables")
+            print("[red]ALERT[/red] Failed to get bitable tables")
+            return
+            # raise Exception("Failed to get bitable tables")
 
         content = response.json().get("data").get("items")
 
@@ -75,18 +82,20 @@ class LarkApp:
         # TODO: 有更简单的写法吗？
 
         if self.table_id is None:
-            raise Exception("Failed to get table_id")
+            print("[red]ALERT[/red] Failed to get table_id")
+            return
+            # raise Exception("Failed to get table_id")
 
-        typer.echo("table_id: {}".format(self.table_id))
+        print("[blue]APP[/blue] table_id: {}".format(self.table_id))
 
         pass
 
     def run(self) -> None:
-
+        # 再次获取token，避免token过期
+        self.token = get_token(self.app_id, self.app_secret)
         self.check_new_info()
 
         pass
-
 
     def check_new_info(self) -> None:
         # 检查包含成员信息的文档是否有新增成员，如果有，则检查是否分配了PATCH，如果没有，则先在新手任务中分配一个？
@@ -108,20 +117,21 @@ class LarkApp:
 
         response = requests.request("GET", content_url, headers=headers, params=params)
         if response.json().get("code") != 0:
-            raise Exception("Failed to get spreadsheet content")
+            print("[red]ALERT[/red] Failed to get spreadsheet content")
+            return
+            # raise Exception("Failed to get spreadsheet content")
 
         # 将表格内容解析为dict，其中第一列的值为key，其他列的值为value（列表）
         # 注意第一行不需要，因为是表头
         content = response.json().get("data").get("valueRanges")[0].get("values")[1:]
         if len(content) == 0:
-            raise Exception("Failed to get spreadsheet content")
+            print("[red]ALERT[/red] Failed to get spreadsheet content")
+            return
+            # raise Exception("Failed to get spreadsheet content")
 
         members = [item[0] for item in content]
-        # typer.echo(members)
 
         # TODO: 自动分配 Copilot
-
-        # 需要找亮哥对一下自动分配 PATCH 的逻辑
 
         # ---------------------------------------------#
         # 获取所有的记录，仅保留所有Assignees并去重？
@@ -133,11 +143,13 @@ class LarkApp:
 
         response = requests.request("GET", records_url, headers=headers, params=params)
         if response.json().get("code") != 0:
-            raise Exception("Failed to get bitable records")
+            print("[red]ALERT[/red] Failed to get bitable records")
+            return
+            # raise Exception("Failed to get bitable records")
 
         record_list = response.json().get("data").get("items")
-        if len(record_list) == 0:
-            typer.echo("Record Error")
+        if record_list is None or len(record_list) == 0:
+            print("[purple]INFO[/purple] failed to get assignees")
             return
 
         assignees_list = [item.get("fields").get("Assignees") for item in record_list]
@@ -153,11 +165,13 @@ class LarkApp:
 
         response = requests.request("GET", records_url, headers=headers, params=params)
         if response.json().get("code") != 0:
-            raise Exception("Failed to get bitable records")
+            print("[red]ALERT[/red] Failed to get bitable records")
+            return
+            # raise Exception("Failed to get bitable records")
 
         record_list = response.json().get("data").get("items")
-        if len(record_list) == 0:
-            typer.echo("No record needs to assign")
+        if record_list is None or len(record_list) == 0:
+            print("[purple]INFO[/purple] No record needs to assign")
             return
 
         # ---------------------------------------------#
@@ -170,46 +184,48 @@ class LarkApp:
         assignees_set = set(assignees_list)
 
         diff_set = members_set.difference(assignees_set)
-        diff_list = list(diff_set)
+        if diff_set is None or len(diff_set) == 0:
+            print("[purple]INFO[/purple] No member needs to assign")
+            return
 
-        typer.echo(diff_list)
+        diff_list = list(diff_set)
+        print(f"[blue]APP[/blue] diff_list: {diff_list}")
 
         # 分配PATCH
-
         for diff in diff_list:
             # 检查是否还有可分配的PATCH
             if record_list is None or len(record_list) == 0:
-                typer.echo("No record needs to assign")
+                print("[purple]INFO[/purple] No record needs to assign")
                 return
 
-            # 随机分配一个PATCH
-            record = random.choice(record_list)
-            typer.echo(record)
+            # 从上到下分配PATCH
+            record = record_list.pop(0)
 
             # 更新记录
             record_id = record.get("record_id")
 
             update_url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{self.app_token}/tables/{self.table_id}/records/{record_id}"
             fields = record.get("fields")
-            fields.update({"Assignees": str(diff), "Patch Progress": 0.1})
-
-            typer.echo(fields)
+            fields.update(
+                {
+                    "Assignees": str(diff),
+                    "Patch Progress": 0.1,
+                    "Task Date": int(datetime.datetime.now().timestamp()) * 1000,
+                    "Patch Copilot": "慕冬亮",
+                }
+            )
 
             data = json.dumps({"fields": fields})
 
-            typer.echo(fields.get("Bug Information"))
+            print("[blue]APP[/blue] new assign", fields.get("Bug Information"))
 
             response = requests.request("PUT", update_url, headers=headers, data=data)
             if response.json().get("code") != 0:
-                typer.echo(response.json())
-                raise Exception("Failed to update bitable records")
-            
-            # 从记录列表中删除已分配的记录
-            record_list.remove(record)
+                print("[red]ALERT[/red] Failed to update bitable records")
+                return
+                # raise Exception("Failed to update bitable records")
 
-            
         pass
-
 
     def update_status(self) -> None:
         pass

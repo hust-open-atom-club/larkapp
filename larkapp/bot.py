@@ -1,8 +1,3 @@
-# !/usr/bin/env python3
-# coding:utf-8
-
-# larkbot.py
-
 import base64
 import hashlib
 import hmac
@@ -10,6 +5,7 @@ import os
 import time
 from datetime import datetime
 
+from rich import print
 import feedparser
 import requests
 import schedule
@@ -35,13 +31,13 @@ class LarkBot:
         return sign
 
     def run(self) -> None:
-        print("start running RSS bot @ {}".format(datetime.now()))
+        print("[green]BOT[/green] start running RSS bot @ {}".format(datetime.now()))
 
         try:
             feed = feedparser.parse("https://lore.kernel.org/lkml/?q=hust.edu.cn&x=A")
 
         except Exception as e:
-            print("failed to fetch RSS feed: {}".format(e))
+            print("[red]ERROR[/red] failed to fetch RSS feed: {}".format(e))
             return
 
         elements = []
@@ -50,7 +46,7 @@ class LarkBot:
             updated = entry.updated
 
             if updated > self.last_updated:
-                print("new entry: {}".format(entry.title))
+                print("[green]BOT[/green]  new entry: {}".format(entry.title))
 
                 elements.append(
                     {
@@ -63,7 +59,7 @@ class LarkBot:
                 break
 
         if len(elements) == 0:
-            print("no new entries")
+            print("[green]BOT[/green] no new entries")
             return
 
         timestamp = int(datetime.now().timestamp())
@@ -90,16 +86,24 @@ class LarkBot:
             resp.raise_for_status()
             result = resp.json()
             if result.get("code") and result["code"] != 0:
-                print(result["msg"])
-                print("failed to send message @ {}".format(datetime.now()))
+                print("[red]ERROR[/red] {}".format(result["msg"]))
+                print(
+                    "[red]ERROR[/red] failed to send message @ {}".format(
+                        datetime.now()
+                    )
+                )
                 return
 
             self.last_updated = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 
-            print("successfully sent message @ {}".format(datetime.now()))
+            print(
+                "[green]BOT[/green] successfully sent message @ {}".format(
+                    datetime.now()
+                )
+            )
 
         except Exception as e:
-            print("failed to send message: {}".format(e))
+            print("[red]ERROR[/red] failed to send message: {}".format(e))
 
 
 def test_bot():
@@ -116,4 +120,3 @@ def test_bot():
     while True:
         schedule.run_pending()
         time.sleep(1)
-
