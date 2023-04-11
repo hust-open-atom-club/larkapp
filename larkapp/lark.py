@@ -143,12 +143,12 @@ class LarkApp:
         assignees_list = [item.get("fields").get("Assignees") for item in record_list]
 
         # ---------------------------------------------#
-        # 利用筛选条件检索没有分配者且为 True Positive 的记录
+        # 利用筛选条件检索没有分配者且为 True Positive 且 Comments 为空的记录
         # ---------------------------------------------#
 
         records_url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{self.app_token}/tables/{self.table_id}/records"
         params = {
-            "filter": 'AND(CurrentValue.[Assignees]="",CurrentValue.[Type]="True Positive")'
+            "filter": 'AND(CurrentValue.[Assignees]="",CurrentValue.[Type]="True Positive",CurrentValue.[Comments]="")'
         }
 
         response = requests.request("GET", records_url, headers=headers, params=params)
@@ -177,8 +177,10 @@ class LarkApp:
         # 分配PATCH
 
         for diff in diff_list:
-            # 检查是否还有可分配的PATCH？
-            # 无需进行，上面已经检查过了
+            # 检查是否还有可分配的PATCH
+            if record_list is None or len(record_list) == 0:
+                typer.echo("No record needs to assign")
+                return
 
             # 随机分配一个PATCH
             record = random.choice(record_list)
@@ -189,8 +191,8 @@ class LarkApp:
 
             update_url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{self.app_token}/tables/{self.table_id}/records/{record_id}"
             fields = record.get("fields")
-            fields.update({"Assignees": str(diff)})
-            
+            fields.update({"Assignees": str(diff), "Patch Progress": 0.1})
+
             typer.echo(fields)
 
             data = json.dumps({"fields": fields})
@@ -206,4 +208,8 @@ class LarkApp:
             record_list.remove(record)
 
             
+        pass
+
+
+    def update_status(self) -> None:
         pass

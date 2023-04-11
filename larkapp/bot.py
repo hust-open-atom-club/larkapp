@@ -111,8 +111,6 @@ def test_bot():
 
     bot = LarkBot(secret=WEBHOOK_SECRET, url=WEBHOOK_URL)
 
-    # bot.run()
-
     schedule.every(10).minutes.do(bot.run)
 
     while True:
