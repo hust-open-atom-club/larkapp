@@ -24,6 +24,6 @@ def get_token(app_id: str, app_secret: str) -> str:
     if tenant_access_token is None:
         raise Exception("Failed to get tenant_access_token")
 
-    typer.echo(tenant_access_token)
+    typer.echo("tenant_access_token: {0}".format(tenant_access_token))
 
     return tenant_access_token

@@ -1,7 +1,8 @@
 # from larkapp.web import app
+import json
+import random
 
 import typer
-import schedule
 
 import requests
 
@@ -15,13 +16,15 @@ class LarkApp:
 
         self.token = get_token(app_id, app_secret)
 
-        self.spreadsheetToken = "shtcnEEqrGPV0GQUAI4Zfalpqad"
+        self.spreadsheetToken = "shtcnIOEYcbbwoVQQZsKBgiuNFe"
         self.app_token = "SGDMbFZuyasuOAsLCi7cRZ83nfe"
 
         # 接下来的值可以自动获取
-        self.sheet_id = "37f4ec"
+
+        self.get_metainfo()
+
+        self.sheet_id = "Ht5RNk"
         self.table_id = "tblPHPdEzAkq21OG"
-        self.view_id = "vewz9hUZSJ"
 
         pass
 
@@ -45,10 +48,10 @@ class LarkApp:
 
         self.sheet_id = response.json().get("data").get("sheets")[0].get("sheetId")
 
-        typer.echo(self.sheet_id)
+        typer.echo("sheet_id: {0}".format(self.sheet_id))
 
         # --------------------------------------------#
-        # 获取多维表格的数据表
+        # 获取多维表格的数据表table_id
         # --------------------------------------------#
 
         tables_url = (
@@ -64,6 +67,7 @@ class LarkApp:
 
         self.table_id = None
         for item in content:
+            # TODO: 注意这里是按照名称来获取的，如果名称不一致，会导致获取失败
             if item.get("name") == "Linux Kernel":
                 self.table_id = item.get("table_id")
                 break
@@ -73,47 +77,16 @@ class LarkApp:
         if self.table_id is None:
             raise Exception("Failed to get table_id")
 
-        typer.echo(self.table_id)
-
-        #--------------------------------------------#
-        # 获取视图的view_id
-        #--------------------------------------------#
-
-        views_url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{self.app_token}/tables/{self.table_id}/views"
-        params = {}
-
-        response = requests.request("GET", views_url, headers=headers, params=params)
-        if response.json().get("code") != 0:
-            raise Exception("Failed to get bitable views")
-        
-        content = response.json().get("data").get("items")
-
-        # 根据view_name查找所需的view_id
-        self.view_id = None
-        for item in content:
-            if item.get("view_name") == "Kernel":
-                self.view_id = item.get("view_id")
-                break
-
-        if self.view_id is None:
-            raise Exception("Failed to get view_id")
-        
-        typer.echo(self.view_id)
+        typer.echo("table_id: {}".format(self.table_id))
 
         pass
 
     def run(self) -> None:
-        schedule.every(30).minutes.do(self.check_mail)
+
+        self.check_new_info()
 
         pass
 
-    def check_mail(self) -> None:
-        # TODO: 用于自动 check 邮件列表内的更新
-        #       需要读取邮箱并对应至用户名，然后用机器人发送消息@之
-        #       获取邮件列表的方法在寝室内的机器上
-        #       需要使用另一个群组bot
-
-        pass
 
     def check_new_info(self) -> None:
         # 检查包含成员信息的文档是否有新增成员，如果有，则检查是否分配了PATCH，如果没有，则先在新手任务中分配一个？
@@ -140,5 +113,97 @@ class LarkApp:
         # 将表格内容解析为dict，其中第一列的值为key，其他列的值为value（列表）
         # 注意第一行不需要，因为是表头
         content = response.json().get("data").get("valueRanges")[0].get("values")[1:]
+        if len(content) == 0:
+            raise Exception("Failed to get spreadsheet content")
 
+        members = [item[0] for item in content]
+        # typer.echo(members)
+
+        # TODO: 自动分配 Copilot
+
+        # 需要找亮哥对一下自动分配 PATCH 的逻辑
+
+        # ---------------------------------------------#
+        # 获取所有的记录，仅保留所有Assignees并去重？
+        # 也使用按条件过滤的API
+        # ---------------------------------------------#
+
+        records_url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{self.app_token}/tables/{self.table_id}/records"
+        params = {"filter": 'AND(CurrentValue.[Assignees]!="")'}
+
+        response = requests.request("GET", records_url, headers=headers, params=params)
+        if response.json().get("code") != 0:
+            raise Exception("Failed to get bitable records")
+
+        record_list = response.json().get("data").get("items")
+        if len(record_list) == 0:
+            typer.echo("Record Error")
+            return
+
+        assignees_list = [item.get("fields").get("Assignees") for item in record_list]
+
+        # ---------------------------------------------#
+        # 利用筛选条件检索没有分配者且为 True Positive 的记录
+        # ---------------------------------------------#
+
+        records_url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{self.app_token}/tables/{self.table_id}/records"
+        params = {
+            "filter": 'AND(CurrentValue.[Assignees]="",CurrentValue.[Type]="True Positive")'
+        }
+
+        response = requests.request("GET", records_url, headers=headers, params=params)
+        if response.json().get("code") != 0:
+            raise Exception("Failed to get bitable records")
+
+        record_list = response.json().get("data").get("items")
+        if len(record_list) == 0:
+            typer.echo("No record needs to assign")
+            return
+
+        # ---------------------------------------------#
+        # 遍历记录，分配PATCH
+        # TODO: 逻辑需要调整
+        # ---------------------------------------------#
+
+        # 获取差集
+        members_set = set(members)
+        assignees_set = set(assignees_list)
+
+        diff_set = members_set.difference(assignees_set)
+        diff_list = list(diff_set)
+
+        typer.echo(diff_list)
+
+        # 分配PATCH
+
+        for diff in diff_list:
+            # 检查是否还有可分配的PATCH？
+            # 无需进行，上面已经检查过了
+
+            # 随机分配一个PATCH
+            record = random.choice(record_list)
+            typer.echo(record)
+
+            # 更新记录
+            record_id = record.get("record_id")
+
+            update_url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{self.app_token}/tables/{self.table_id}/records/{record_id}"
+            fields = record.get("fields")
+            fields.update({"Assignees": str(diff)})
+            
+            typer.echo(fields)
+
+            data = json.dumps({"fields": fields})
+
+            typer.echo(fields.get("Bug Information"))
+
+            response = requests.request("PUT", update_url, headers=headers, data=data)
+            if response.json().get("code") != 0:
+                typer.echo(response.json())
+                raise Exception("Failed to update bitable records")
+            
+            # 从记录列表中删除已分配的记录
+            record_list.remove(record)
+
+            
         pass
