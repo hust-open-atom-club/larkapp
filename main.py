@@ -20,7 +20,7 @@ def run(app_id: str, app_secret: str):
     app = LarkApp(app_id, app_secret)
 
     schedule.every(10).minutes.do(bot.run)
-    schedule.every(20).minutes.do(app.run)
+    # schedule.every(20).minutes.do(app.run)
 
     schedule.run_all()
 

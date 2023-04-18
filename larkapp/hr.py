@@ -82,9 +82,19 @@ def get_kernel_members(token: str) -> list[LarkUser]:
         print("[red]ALERT[/red] Failed to get spreadsheet content")
         return []
 
-    members = [
-        LarkUser(name=item[0], en_name=item[0], email="", id="") for item in content
-    ]
+    members = []
+
+    for item in content:
+        name = item[0]
+        en_name = item[0]
+        email = item[2][0].get("text", None)
+        if email is None or email == "":
+            email = item[2][1].get("text", None)
+        id = ""
+
+        new_member = LarkUser(email, en_name, name, id)
+
+        members.append(new_member)
 
     return members
 
@@ -95,11 +105,11 @@ def get_iot_members(token: str) -> list[LarkUser]:
 
 def test_members():
     token = get_token(
-        app_id=os.getenv("APP_ID", default=None),           # type: ignore
-        app_secret=os.getenv("APP_SECRET", default=None),   # type: ignore
+        app_id=os.getenv("APP_ID", default=None),  # type: ignore
+        app_secret=os.getenv("APP_SECRET", default=None),  # type: ignore
     )
     members = get_all_members(token)
     print([str(item) for item in members])
 
     members = get_kernel_members(token)
-    print([str(item) for item in members])
+    print([(member.name, member.email) for member in members])
