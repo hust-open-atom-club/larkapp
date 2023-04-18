@@ -1,9 +1,13 @@
+import dotenv
+import os
+
 from larkapp import LarkApp
 
 
-def test_get_metainfo():
+def test():
     app = LarkApp(
-        app_id="cli_a4beae5db8f8500e", app_secret="MYJt7hkEpMSXxwlK5Kvs3cy7jch5iye7"
+        app_id=os.getenv("APP_ID", default=None),           # type: ignore
+        app_secret=os.getenv("APP_SECRET", default=None),   # type: ignore
     )
 
     # app.get_metainfo()
@@ -11,4 +15,6 @@ def test_get_metainfo():
 
 
 if __name__ == "__main__":
-    test_get_metainfo()
+    dotenv.load_dotenv(dotenv_path=".env")
+
+    test()

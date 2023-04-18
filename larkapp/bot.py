@@ -19,7 +19,7 @@ class LarkBot:
         self.secret = secret
         self.url = url
         self.last_updated = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-        # self.last_updated = "2023-04-06T09:01:16Z"
+        # self.last_updated = "2023-04-17T14:01:21Z"
 
     def gen_sign(self, timestamp: int) -> str:
         string_to_sign = "{}\n{}".format(timestamp, self.secret)
@@ -42,19 +42,26 @@ class LarkBot:
 
         elements = []
 
+        new_count = 0
+        reply_count = 0
+
         for entry in feed.entries:
             updated = entry.updated
 
             if updated > self.last_updated:
-                print("[green]BOT[/green]  new entry: {}".format(entry.title))
+                print("[green]BOT[/green] new entry: {}".format(entry.title))
+
+                if entry.title.startswith("Re:"):
+                    reply_count += 1
+                else:
+                    new_count += 1
 
                 elements.append(
                     {
                         "tag": "markdown",
-                        "content": f"*{entry.author}*\n[{entry.title}]({entry.link})",
+                        "content": f"{entry.author}\n[{entry.title}]({entry.link})",
                     }
                 )
-
             else:
                 break
 
@@ -74,7 +81,7 @@ class LarkBot:
                 "header": {
                     "template": "blue",
                     "title": {
-                        "content": "RSS feed for PATCH",
+                        "content": f"LKML: {new_count} new, {reply_count} reply",
                         "tag": "plain_text",
                     },  # TODO
                 },
@@ -105,17 +112,60 @@ class LarkBot:
         except Exception as e:
             print("[red]ERROR[/red] failed to send message: {}".format(e))
 
+    def send_msg(self, elements) -> None:
+        print("[green]BOT[/green] send msg @ {}".format(datetime.now()))
+
+        timestamp = int(datetime.now().timestamp())
+        sign = self.gen_sign(timestamp)
+
+        params = {
+            "timestamp": timestamp,
+            "sign": sign,
+            "msg_type": "interactive",
+            "card": {
+                "elements": elements,
+                "header": {
+                    "template": "blue",
+                    "title": {
+                        "content": "New PATCH Assigned",
+                        "tag": "plain_text",
+                    },
+                },
+            },
+        }
+
+        try:
+            resp = requests.post(url=self.url, json=params)
+            resp.raise_for_status()
+            result = resp.json()
+            if result.get("code") and result["code"] != 0:
+                print("[red]ERROR[/red] {}".format(result["msg"]))
+                print(
+                    "[red]ERROR[/red] failed to send message @ {}".format(
+                        datetime.now()
+                    )
+                )
+                return
+
+            print(
+                "[green]BOT[/green] successfully sent message @ {}".format(
+                    datetime.now()
+                )
+            )
+
+        except Exception as e:
+            print("[red]ERROR[/red] failed to send message: {}".format(e))
+
 
 def test_bot():
-    WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", default="NIW7s5jqrTVhYtFHGOsd1f")
-    WEBHOOK_URL = os.getenv(
-        "WEBHOOK_URL",
-        default="https://open.feishu.cn/open-apis/bot/v2/hook/3b2f8e5e-35ce-416d-ba9a-62f4f1e070b4",
-    )
+    WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", default=None)
+    WEBHOOK_URL = os.getenv("WEBHOOK_URL", default=None)
 
-    bot = LarkBot(secret=WEBHOOK_SECRET, url=WEBHOOK_URL)
+    bot = LarkBot(secret=WEBHOOK_SECRET, url=WEBHOOK_URL)  # type: ignore
 
     schedule.every(10).minutes.do(bot.run)
+
+    schedule.run_all()
 
     while True:
         schedule.run_pending()

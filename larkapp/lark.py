@@ -1,12 +1,14 @@
 # from larkapp.web import app
 import json
 import datetime
+import os
 
 from rich import print
 
 import requests
 
 from larkapp.util import get_token
+from larkapp.bot import LarkBot
 
 
 class LarkApp:
@@ -19,27 +21,24 @@ class LarkApp:
 
         self.token = get_token(self.app_id, self.app_secret)
 
-        self.spreadsheetToken = "shtcnIOEYcbbwoVQQZsKBgiuNFe"  # 成员信息表id
-        self.app_token = "SGDMbFZuyasuOAsLCi7cRZ83nfe"  # 多维表格id
+        self.spreadsheetToken = os.getenv(
+            "KERNEL_SPREADSHEETTOKEN", default=None
+        )  # Kernel 成员信息表id
+        self.app_token = os.getenv("KERNEL_APP_TOKEN", default=None)  # Kernel 多维表格id
 
-        # 接下来的值可以自动获取
+        WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", default=None)
+        WEBHOOK_URL = os.getenv("WEBHOOK_URL", default=None)
 
-        self.get_metainfo()
-
-        self.sheet_id = "Ht5RNk"
-        self.table_id = "tblPHPdEzAkq21OG"
+        self.bot = LarkBot(secret=WEBHOOK_SECRET, url=WEBHOOK_URL)  # type: ignore
 
         pass
 
-    def get_metainfo(self) -> None:
-        # 自动化获取sheet_id, table_id, view_id
-        # 非必需，也可以每次初始化都运行来避免填写的数据太多
-
+    def get_sheet_id(self, spreadsheetToken: str) -> str:
         # --------------------------------------------#
         # 获取表格元数据以获取sheetid
         # --------------------------------------------#
 
-        metainfo_url = f"https://open.feishu.cn/open-apis/sheets/v2/spreadsheets/{self.spreadsheetToken}/metainfo"
+        metainfo_url = f"https://open.feishu.cn/open-apis/sheets/v2/spreadsheets/{spreadsheetToken}/metainfo"
         headers = {
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json; charset=utf-8",
@@ -48,16 +47,24 @@ class LarkApp:
         response = requests.request("GET", metainfo_url, headers=headers)
         if response.json().get("code") != 0:
             print("[red]ALERT[/red] Failed to get spreadsheet metainfo")
-            return
+            return ""
             # raise Exception("Failed to get spreadsheet metainfo")
 
-        self.sheet_id = response.json().get("data").get("sheets")[0].get("sheetId")
+        sheet_id = response.json().get("data").get("sheets")[0].get("sheetId")
 
-        print("[blue]APP[/blue] sheet_id: {0}".format(self.sheet_id))
+        print("[blue]APP[/blue] sheet_id: {0}".format(sheet_id))
 
+        return sheet_id
+
+    def get_table_id_by_name(self, name: str) -> str:
         # --------------------------------------------#
         # 获取多维表格的数据表table_id
         # --------------------------------------------#
+
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "Content-Type": "application/json; charset=utf-8",
+        }
 
         tables_url = (
             f"https://open.feishu.cn/open-apis/bitable/v1/apps/{self.app_token}/tables"
@@ -67,28 +74,28 @@ class LarkApp:
         response = requests.request("GET", tables_url, headers=headers, params=params)
         if response.json().get("code") != 0:
             print("[red]ALERT[/red] Failed to get bitable tables")
-            return
+            return ""
             # raise Exception("Failed to get bitable tables")
 
         content = response.json().get("data").get("items")
 
-        self.table_id = None
+        table_id = None
         for item in content:
             # TODO: 注意这里是按照名称来获取的，如果名称不一致，会导致获取失败
-            if item.get("name") == "Linux Kernel":
-                self.table_id = item.get("table_id")
+            if item.get("name") == name:
+                table_id = item.get("table_id")
                 break
 
         # TODO: 有更简单的写法吗？
 
-        if self.table_id is None:
+        if table_id is None:
             print("[red]ALERT[/red] Failed to get table_id")
-            return
+            return ""
             # raise Exception("Failed to get table_id")
 
-        print("[blue]APP[/blue] table_id: {}".format(self.table_id))
+        # print("[blue]APP[/blue] table_id: {}".format(table_id))
 
-        pass
+        return table_id
 
     def run(self) -> None:
         # 再次获取token，避免token过期
@@ -108,28 +115,9 @@ class LarkApp:
             "Content-Type": "application/json; charset=utf-8",
         }
 
-        # --------------------------------------------#
-        # 然后获取表格内容
-        # --------------------------------------------#
+        from larkapp.hr import get_kernel_members
 
-        content_url = f"https://open.feishu.cn/open-apis/sheets/v2/spreadsheets/{self.spreadsheetToken}/values_batch_get"
-        params = {"ranges": f"{self.sheet_id}"}
-
-        response = requests.request("GET", content_url, headers=headers, params=params)
-        if response.json().get("code") != 0:
-            print("[red]ALERT[/red] Failed to get spreadsheet content")
-            return
-            # raise Exception("Failed to get spreadsheet content")
-
-        # 将表格内容解析为dict，其中第一列的值为key，其他列的值为value（列表）
-        # 注意第一行不需要，因为是表头
-        content = response.json().get("data").get("valueRanges")[0].get("values")[1:]
-        if len(content) == 0:
-            print("[red]ALERT[/red] Failed to get spreadsheet content")
-            return
-            # raise Exception("Failed to get spreadsheet content")
-
-        members = [item[0] for item in content]
+        members = [member.name for member in get_kernel_members(self.token)]
 
         # TODO: 自动分配 Copilot
 
@@ -138,7 +126,9 @@ class LarkApp:
         # 也使用按条件过滤的API
         # ---------------------------------------------#
 
-        records_url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{self.app_token}/tables/{self.table_id}/records"
+        table_id = self.get_table_id_by_name("Linux Kernel")
+
+        records_url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{self.app_token}/tables/{table_id}/records"
         params = {"filter": 'AND(CurrentValue.[Assignees]!="")'}
 
         response = requests.request("GET", records_url, headers=headers, params=params)
@@ -152,13 +142,15 @@ class LarkApp:
             print("[purple]INFO[/purple] failed to get assignees")
             return
 
-        assignees_list = [item.get("fields").get("Assignees") for item in record_list]
+        assignees_list = [
+            item.get("fields").get("Assignees")[0].get("name") for item in record_list
+        ]
 
         # ---------------------------------------------#
         # 利用筛选条件检索没有分配者且为 True Positive 且 Comments 为空的记录
         # ---------------------------------------------#
 
-        records_url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{self.app_token}/tables/{self.table_id}/records"
+        records_url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{self.app_token}/tables/{table_id}/records"
         params = {
             "filter": 'AND(CurrentValue.[Assignees]="",CurrentValue.[Type]="True Positive",CurrentValue.[Comments]="")'
         }
@@ -184,7 +176,7 @@ class LarkApp:
         assignees_set = set(assignees_list)
 
         diff_set = members_set.difference(assignees_set)
-        if diff_set is None or len(diff_set) == 0:
+        if diff_set is None or len(list(diff_set)) == 0:
             print("[purple]INFO[/purple] No member needs to assign")
             return
 
@@ -192,11 +184,41 @@ class LarkApp:
         print(f"[blue]APP[/blue] diff_list: {diff_list}")
 
         # 分配PATCH
+        # 首先获取全部用户的信息，包括姓名与open_id
+        from larkapp.hr import get_all_members
+
+        all_members = get_all_members(self.token)
+
+        # 白名单
+        white_list = []
+
+        elements = []
+
         for diff in diff_list:
+            # 检查是否在白名单中
+            if diff in white_list:
+                continue
+
             # 检查是否还有可分配的PATCH
             if record_list is None or len(record_list) == 0:
                 print("[purple]INFO[/purple] No record needs to assign")
                 return
+
+            assignees = None
+
+            for member in all_members:
+                if member.name == diff:
+                    assignees = member.dict()
+                    break
+
+            if assignees is None:
+                print("[red]ALERT[/red] Failed to get assignees of {}".format(diff))
+                continue
+
+            # TODO: 这里需要通过name来查找对应的en_name，email和用户id！！！！
+            #       最终解决方案：通过获取填写了信息储备表的用户的信息，然后通过name来查找对应的信息
+
+            print(assignees)
 
             # 从上到下分配PATCH
             record = record_list.pop(0)
@@ -204,14 +226,35 @@ class LarkApp:
             # 更新记录
             record_id = record.get("record_id")
 
-            update_url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{self.app_token}/tables/{self.table_id}/records/{record_id}"
+            update_url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{self.app_token}/tables/{table_id}/records/{record_id}"
             fields = record.get("fields")
+
+            bug_info = fields.get("Bug Information")
+
+            assignees_id = assignees.get("id")
+
+            elements.append(
+                {
+                    "tag": "markdown",
+                    "content": f"{bug_info} assigned to <at id={assignees_id}></at>",
+                }
+            )
+
+            continue
+
             fields.update(
                 {
-                    "Assignees": str(diff),
+                    "Assignees": assignees,
                     "Patch Progress": 0.1,
                     "Task Date": int(datetime.datetime.now().timestamp()) * 1000,
-                    "Patch Copilot": "慕冬亮",
+                    "Patch Copilot": [
+                        {
+                            "email": "",
+                            "en_name": os.getenv("COPILOT_NAME", default=None),
+                            "id": os.getenv("COPILOT_ID", default=None),
+                            "name": os.getenv("COPILOT_NAME", default=None),
+                        }
+                    ],
                 }
             )
 
@@ -224,6 +267,11 @@ class LarkApp:
                 print("[red]ALERT[/red] Failed to update bitable records")
                 return
                 # raise Exception("Failed to update bitable records")
+
+        # 发送消息
+        if len(elements) != 0:
+            print(elements)
+            # self.bot.send_msg(elements)
 
         pass
 
