@@ -31,3 +31,18 @@ def get_token(app_id: str, app_secret: str) -> str:
 def request() -> requests.response:
 
     pass
+
+def escape_markdown(text: str):
+    """
+    return text escaped given entity types
+    :param text: text to escape
+    :param entity_type: entities to escape
+    :return:
+    """
+    # de-escape and escape again to avoid double escaping
+    return text.replace('\\*', '*').replace('\\`', '`').replace('\\_', '_')\
+        .replace('\\~', '~').replace('\\>', '>').replace('\\[', '[')\
+        .replace('\\]', ']').replace('\\(', '(').replace('\\)', ')')\
+        .replace('*', '\\*').replace('`', '\\`').replace('_', '\\_')\
+        .replace('~', '\\~').replace('>', '\\>').replace('[', '\\[')\
+        .replace(']', '\\]').replace('(', '\\(').replace(')', '\\)')

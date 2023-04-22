@@ -12,7 +12,7 @@ import requests
 import schedule
 
 from larkapp.hr import get_all_members, get_kernel_members
-from larkapp.util import get_token
+from larkapp.util import get_token, escape_markdown
 
 
 class LarkBot:
@@ -81,7 +81,7 @@ class LarkBot:
                         elements.append(
                             {
                                 "tag": "markdown",
-                                "content": f"<at id={id}></at> {email}\n[{entry.title}]({entry.link})",
+                                "content": f"<at id={id}></at> {email}\n[{escape_markdown(entry.title)}]({escape_markdown(entry.link)})",
                             }
                         )
                         continue
@@ -90,7 +90,7 @@ class LarkBot:
                 elements.append(
                     {
                         "tag": "markdown",
-                        "content": f"{entry.author}\n[{entry.title}]({entry.link})",
+                        "content": f"{entry.author}\n[{escape_markdown(entry.title)}]({escape_markdown(entry.link)})",
                     }
                 )
             else:
