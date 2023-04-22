@@ -190,7 +190,20 @@ class LarkApp:
         all_members = get_all_members(self.token)
 
         # 白名单
-        white_list = []
+        # white_list = []
+        white_list = [
+            "罗昊",
+            "周文宇",
+            "陈骏",
+            "邵正昊",
+            "黄莉雯",
+            "黄畅怡",
+            "李佩芝",
+            "易迎澳",
+            "江帅",
+            "娄峥",
+            "王俊海",
+        ]
 
         elements = []
 

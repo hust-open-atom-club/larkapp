@@ -87,6 +87,11 @@ def get_kernel_members(token: str) -> list[LarkUser]:
     for item in content:
         name = item[0]
         en_name = item[0]
+
+        if item[2] is None:
+            print(f"[red]ALERT[/red] Failed to get email of {name}")
+            continue
+
         email = item[2][0].get("text", None)
         if email is None or email == "":
             email = item[2][1].get("text", None)

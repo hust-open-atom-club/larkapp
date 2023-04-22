@@ -27,3 +27,7 @@ def get_token(app_id: str, app_secret: str) -> str:
     # print("[blue]APP[/blue] tenant_access_token: {0}".format(tenant_access_token))
 
     return tenant_access_token
+
+def request() -> requests.response:
+
+    pass
