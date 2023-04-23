@@ -28,9 +28,6 @@ def get_token(app_id: str, app_secret: str) -> str:
 
     return tenant_access_token
 
-def request() -> requests.response:
-
-    pass
 
 def escape_markdown(text: str):
     """

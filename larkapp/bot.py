@@ -46,7 +46,13 @@ class LarkBot:
 
         app_id = os.getenv("APP_ID")
         app_secret = os.getenv("APP_SECRET")
-        token = get_token(app_id, app_secret)  # type: ignore
+
+        try:
+            token = get_token(app_id, app_secret)  # type: ignore
+
+        except Exception as e:
+            print("[red]ERROR[/red] failed to get access token: {}".format(e))
+            return
 
         all_members = get_all_members(token)
         kernel_members = get_kernel_members(token)
