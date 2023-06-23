@@ -12,12 +12,12 @@ cli = typer.Typer()
 
 
 @cli.command()
-def run(app_id: str, app_secret: str):
+def run():
     WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET")
     WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
     bot = LarkBot(secret=WEBHOOK_SECRET, url=WEBHOOK_URL)  # type: ignore
-    app = LarkApp(app_id, app_secret)
+    # app = LarkApp(app_id, app_secret)
 
     schedule.every(10).minutes.do(bot.run)
     # schedule.every(20).minutes.do(app.run)

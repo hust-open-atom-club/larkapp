@@ -23,7 +23,6 @@ class LarkBot:
         self.secret = secret
         self.url = url
         self.last_updated = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-        # self.last_updated = "2023-04-18T09:25:58Z"
 
     def gen_sign(self, timestamp: int) -> str:
         string_to_sign = "{}\n{}".format(timestamp, self.secret)
@@ -54,57 +53,64 @@ class LarkBot:
             print("[red]ERROR[/red] failed to get access token: {}".format(e))
             return
 
-        all_members = get_all_members(token)
-        kernel_members = get_kernel_members(token)
-
         elements = []
 
         new_count = 0
         reply_count = 0
 
+        entries = []
+
         for entry in feed.entries:
             updated = entry.updated
 
             if updated > self.last_updated:
-                print("[green]BOT[/green] new entry: {}".format(entry.title))
-
-                if entry.title.startswith("Re:"):
-                    reply_count += 1
-                else:
-                    new_count += 1
-
-                email = re.search(r"\((.*?)\)", entry.author).group(1)  # type: ignore
-
-                # 在kernel_members中按照email查找人名
-                name_list = list(filter(lambda x: x.email == email, kernel_members))
-                if name_list is not None and len(name_list) != 0:
-                    name = name_list[0].name
-
-                    # 若能搜索到人名，则在all_members中按照人名查找id
-                    id_list = list(filter(lambda x: x.name == name, all_members))
-                    if id_list is not None and len(id_list) != 0:
-                        id = id_list[0].id
-                        elements.append(
-                            {
-                                "tag": "markdown",
-                                "content": f"<at id={id}></at> {email}\n[{escape_markdown(entry.title)}]({escape_markdown(entry.link)})",
-                            }
-                        )
-                        continue
-
-                print("[red]ALERT[/red] cannot find name for {}".format(email))
-                elements.append(
-                    {
-                        "tag": "markdown",
-                        "content": f"{entry.author}\n[{escape_markdown(entry.title)}]({escape_markdown(entry.link)})",
-                    }
-                )
+                entries.append(entry)
             else:
                 break
 
-        if len(elements) == 0:
+        if len(entries) == 0:
             print("[green]BOT[/green] no new entries")
+            print("[green]BOT[/green]   end running RSS bot @ {}".format(datetime.now()))
             return
+
+        # 这里将由文件获取all_members换为使用飞书API获取
+        all_members = get_all_members(token)
+        kernel_members = get_kernel_members(token)
+
+        for entry in entries:
+            print("[green]BOT[/green] new entry: {}".format(entry.title))
+
+            if entry.title.startswith("Re:"):
+                reply_count += 1
+            else:
+                new_count += 1
+
+            email = re.search(r"\((.*?)\)", entry.author).group(1)  # type: ignore
+
+            # 在kernel_members中按照email查找人名
+            name_list = list(filter(lambda x: x.email == email, kernel_members))
+            if name_list is not None and len(name_list) != 0:
+                name = name_list[0].name
+
+                # 若能搜索到人名，则在all_members中按照人名查找id
+                id_list = list(filter(lambda x: x.name == name, all_members))
+                if id_list is not None and len(id_list) != 0:
+                    id = id_list[0].id
+                    elements.append(
+                        {
+                            "tag": "markdown",
+                            "content": f"<at id={id}></at> {email}\n[{escape_markdown(entry.title)}]({escape_markdown(entry.link)})",
+                        }
+                    )
+                    continue
+
+            print("[red]ALERT[/red] cannot find name for {}".format(email))
+            elements.append(
+                {
+                    "tag": "markdown",
+                    "content": f"{entry.author}\n[{escape_markdown(entry.title)}]({escape_markdown(entry.link)})",
+                }
+            )
 
         timestamp = int(datetime.now().timestamp())
         sign = self.gen_sign(timestamp)
@@ -136,6 +142,10 @@ class LarkBot:
                         datetime.now()
                     )
                 )
+
+                print(
+                    "[green]BOT[/green]   end running RSS bot @ {}".format(datetime.now())
+                )
                 return
 
             self.last_updated = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -145,6 +155,8 @@ class LarkBot:
                     datetime.now()
                 )
             )
+            print("[green]BOT[/green]   end running RSS bot @ {}".format(datetime.now()))
+            return
 
         except Exception as e:
             print("[red]ERROR[/red] failed to send message: {}".format(e))
@@ -195,10 +207,12 @@ class LarkBot:
 
 
 def test_bot():
-    WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", default=None)
-    WEBHOOK_URL = os.getenv("WEBHOOK_URL", default=None)
+    WEBHOOK_SECRET = os.getenv("TEST_WEBHOOK_SECRET", default=None)
+    WEBHOOK_URL = os.getenv("TEST_WEBHOOK_URL", default=None)
 
     bot = LarkBot(secret=WEBHOOK_SECRET, url=WEBHOOK_URL)  # type: ignore
+
+    bot.last_updated = "2023-05-23T16:08:25Z"
 
     schedule.every(10).minutes.do(bot.run)
 

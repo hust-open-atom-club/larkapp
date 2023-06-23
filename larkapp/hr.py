@@ -7,46 +7,75 @@ from larkapp.util import get_token
 from larkapp.model import LarkUser
 
 
+# def old__get_all_members(token: str) -> list[LarkUser]:
+#     # 获取信息储备表中的所有成员信息
+#     # 成员信息格式
+#     # {'email': '', 'en_name': '人人人', 'id': 'ou_98ec34393837435008f0642dabe62b35', 'name': '人人人'}
+
+#     app_token = os.getenv("INFO_APP_TOKEN", default=None)  # 信息储备表的app_token
+
+#     table_id = os.getenv("INFO_TABLE_ID", default=None)  # 信息储备表的table_id
+
+#     headers = {"Authorization": f"Bearer {token}"}
+
+#     url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{app_token}/tables/{table_id}/records"
+#     params = {"filter": 'CurrentValue.[姓名]!=""'}
+
+#     response = requests.get(url=url, headers=headers, params=params)
+#     if response.json().get("code") != 0:
+#         print("[red]ALERT[/red] Failed to get all members from sheet")
+#         return []
+#         # raise Exception("Failed to get all members from sheet")
+
+#     members: list[LarkUser] = []
+
+#     items = response.json().get("data").get("items")
+
+#     for item in items:
+#         fields = item.get("fields")
+
+#         if fields.get("飞书账号") is None:
+#             continue
+
+#         user = fields.get("飞书账号")[0]
+
+#         email = user.get("email")
+#         en_name = user.get("en_name")
+#         name = user.get("name")
+#         id = user.get("id")
+
+#         new_member = LarkUser(email, en_name, name, id)
+
+#         members.append(new_member)
+
+#     return members
+
+
 def get_all_members(token: str) -> list[LarkUser]:
-    # 获取信息储备表中的所有成员信息
-    # 成员信息格式
-    # {'email': '', 'en_name': '人人人', 'id': 'ou_98ec34393837435008f0642dabe62b35', 'name': '人人人'}
+    members: list[LarkUser] = []
 
-    app_token = os.getenv("INFO_APP_TOKEN", default=None)  # 信息储备表的app_token
+    chat_id = os.getenv("CHAT_ID", default=None)  # kernel群的chat_id
 
-    table_id = os.getenv("INFO_TABLE_ID", default=None)  # 信息储备表的table_id
+    url = (
+        f"https://open.feishu.cn/open-apis/im/v1/chats/{chat_id}/members?page_size=100"
+    )
+    payload = ""
 
     headers = {"Authorization": f"Bearer {token}"}
 
-    url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{app_token}/tables/{table_id}/records"
-    params = {"filter": 'CurrentValue.[姓名]!=""'}
-
-    response = requests.get(url=url, headers=headers, params=params)
+    response = requests.request("GET", url, headers=headers, data=payload)
     if response.json().get("code") != 0:
-        print("[red]ALERT[/red] Failed to get all members from sheet")
+        print("[red]ALERT[/red] Failed to get group members.")
         return []
-        # raise Exception("Failed to get all members from sheet")
-
-    members: list[LarkUser] = []
 
     items = response.json().get("data").get("items")
 
     for item in items:
-        fields = item.get("fields")
-
-        if fields.get("飞书账号") is None:
-            continue
-
-        user = fields.get("飞书账号")[0]
-
-        email = user.get("email")
-        en_name = user.get("en_name")
-        name = user.get("name")
-        id = user.get("id")
-
-        new_member = LarkUser(email, en_name, name, id)
-
-        members.append(new_member)
+        members.append(
+            LarkUser(
+                name=item.get("name"), id=item.get("member_id"), email="", en_name=""
+            )
+        )
 
     return members
 
@@ -70,7 +99,7 @@ def get_kernel_members(token: str) -> list[LarkUser]:
     # print(response.json())
 
     if response.json().get("code") != 0:
-        print("[red]ALERT[/red] Failed to get spreadsheet content")
+        print("[red]ALERT[/red] Failed to get spreadsheet content One")
         return []
         # raise Exception("Failed to get spreadsheet content")
 
@@ -116,5 +145,5 @@ def test_members():
     members = get_all_members(token)
     print([str(item) for item in members])
 
-    members = get_kernel_members(token)
-    print([(member.name, member.email) for member in members])
+    members_kernel = get_kernel_members(token)
+    print([(member.name, member.email) for member in members_kernel])

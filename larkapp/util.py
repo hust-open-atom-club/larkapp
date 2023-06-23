@@ -37,9 +37,23 @@ def escape_markdown(text: str):
     :return:
     """
     # de-escape and escape again to avoid double escaping
-    return text.replace('\\*', '*').replace('\\`', '`').replace('\\_', '_')\
-        .replace('\\~', '~').replace('\\>', '>').replace('\\[', '[')\
-        .replace('\\]', ']').replace('\\(', '(').replace('\\)', ')')\
-        .replace('*', '\\*').replace('`', '\\`').replace('_', '\\_')\
-        .replace('~', '\\~').replace('>', '\\>').replace('[', '\\[')\
-        .replace(']', '\\]').replace('(', '\\(').replace(')', '\\)')
+    return (
+        text.replace("\\*", "*")
+        .replace("\\`", "`")
+        .replace("\\_", "_")
+        .replace("\\~", "~")
+        .replace("\\>", ">")
+        .replace("\\[", "[")
+        .replace("\\]", "]")
+        .replace("\\(", "(")
+        .replace("\\)", ")")
+        .replace("*", "\\*")
+        .replace("`", "\\`")
+        .replace("_", "\\_")
+        .replace("~", "\\~")
+        .replace(">", "\\>")
+        .replace("[", "\\[")
+        .replace("]", "\\]")
+        .replace("(", "\\(")
+        .replace(")", "\\)")
+    )
