@@ -5,5 +5,5 @@ class LarkEmailBot(BaseLarkBot):
     secret: str
     url: str
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
