@@ -1,3 +1,3 @@
 import larkapp.hr as hr
-from larkapp.bot import LarkBot
 from larkapp.lark import LarkApp
+from larkapp.rss_bot import LarkRSSBot

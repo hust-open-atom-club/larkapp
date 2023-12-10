@@ -5,7 +5,7 @@ import dotenv
 import schedule
 import typer
 
-from larkapp import LarkApp, LarkBot
+from larkapp import LarkApp, LarkRSSBot
 
 cli = typer.Typer()
 
@@ -15,7 +15,7 @@ def run():
     WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET")
     WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
-    bot = LarkBot(secret=WEBHOOK_SECRET, url=WEBHOOK_URL)  # type: ignore
+    bot = LarkRSSBot(secret=WEBHOOK_SECRET, url=WEBHOOK_URL)  # type: ignore
     # app = LarkApp(app_id, app_secret)
 
     schedule.every(10).minutes.do(bot.run)

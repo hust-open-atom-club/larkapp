@@ -6,7 +6,7 @@ import os
 import requests
 from rich import print
 
-from larkapp.bot import LarkBot
+from larkapp.rss_bot import LarkRSSBot
 from larkapp.util import get_token
 
 

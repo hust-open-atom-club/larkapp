@@ -1,6 +1,6 @@
 import dotenv
 
-from larkapp.bot import test_bot
+from larkapp.rss_bot import test_bot
 
 dotenv.load_dotenv(dotenv_path=".env")
 
