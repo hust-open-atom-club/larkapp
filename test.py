@@ -1,5 +1,6 @@
-import dotenv
 import os
+
+import dotenv
 
 from larkapp import LarkApp
 

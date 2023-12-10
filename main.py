@@ -1,12 +1,11 @@
 import os
 import time
 
-import typer
 import dotenv
 import schedule
+import typer
 
-from larkapp import LarkApp
-from larkapp import LarkBot
+from larkapp import LarkApp, LarkBot
 
 cli = typer.Typer()
 

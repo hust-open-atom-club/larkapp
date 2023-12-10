@@ -1,11 +1,10 @@
 import os
 
-from rich import print
 import requests
+from rich import print
 
-from larkapp.util import get_token
 from larkapp.model import LarkUser
-
+from larkapp.util import get_token
 
 # def old__get_all_members(token: str) -> list[LarkUser]:
 #     # 获取信息储备表中的所有成员信息

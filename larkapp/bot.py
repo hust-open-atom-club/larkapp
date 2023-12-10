@@ -6,13 +6,13 @@ import re
 import time
 from datetime import datetime
 
-from rich import print
 import feedparser
 import requests
 import schedule
+from rich import print
 
 from larkapp.hr import get_all_members, get_kernel_members
-from larkapp.util import get_token, escape_markdown
+from larkapp.util import escape_markdown, get_token
 
 
 class LarkBot:
@@ -70,7 +70,9 @@ class LarkBot:
 
         if len(entries) == 0:
             print("[green]BOT[/green] no new entries")
-            print("[green]BOT[/green]   end running RSS bot @ {}".format(datetime.now()))
+            print(
+                "[green]BOT[/green]   end running RSS bot @ {}".format(datetime.now())
+            )
             return
 
         # 这里将由文件获取all_members换为使用飞书API获取
@@ -144,7 +146,9 @@ class LarkBot:
                 )
 
                 print(
-                    "[green]BOT[/green]   end running RSS bot @ {}".format(datetime.now())
+                    "[green]BOT[/green]   end running RSS bot @ {}".format(
+                        datetime.now()
+                    )
                 )
                 return
 
@@ -155,7 +159,9 @@ class LarkBot:
                     datetime.now()
                 )
             )
-            print("[green]BOT[/green]   end running RSS bot @ {}".format(datetime.now()))
+            print(
+                "[green]BOT[/green]   end running RSS bot @ {}".format(datetime.now())
+            )
             return
 
         except Exception as e:
